@@ -206,6 +206,113 @@ app.post('/api/delta/save', async (c) => {
   }
 });
 
+// Update project
+app.put('/api/projects/:id', async (c) => {
+  const { env } = c;
+  const id = c.req.param('id');
+  
+  try {
+    const { name, amount, description, client, status } = await c.req.json();
+    
+    if (!name || !amount) {
+      return c.json({ error: 'Name and amount are required' }, 400);
+    }
+
+    await env.DB.prepare(`
+      UPDATE projects 
+      SET name = ?, amount = ?, description = ?, client = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(name, Math.round(amount * 100), description || '', client || 'Digital Span', status || 'active', id).run();
+
+    return c.json({ 
+      id: parseInt(id), 
+      name, 
+      amount, 
+      description, 
+      client,
+      status,
+      message: 'Project updated successfully' 
+    });
+  } catch (error) {
+    console.error('Error updating project:', error);
+    return c.json({ error: 'Failed to update project' }, 500);
+  }
+});
+
+// Delete project
+app.delete('/api/projects/:id', async (c) => {
+  const { env } = c;
+  const id = c.req.param('id');
+  
+  try {
+    const result = await env.DB.prepare(`
+      DELETE FROM projects WHERE id = ?
+    `).bind(id).run();
+
+    if (result.changes === 0) {
+      return c.json({ error: 'Project not found' }, 404);
+    }
+
+    return c.json({ message: 'Project deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    return c.json({ error: 'Failed to delete project' }, 500);
+  }
+});
+
+// Update payment
+app.put('/api/payments/:id', async (c) => {
+  const { env } = c;
+  const id = c.req.param('id');
+  
+  try {
+    const { month, amount, description, client } = await c.req.json();
+    
+    if (!month || !amount) {
+      return c.json({ error: 'Month and amount are required' }, 400);
+    }
+
+    await env.DB.prepare(`
+      UPDATE payments 
+      SET month = ?, amount = ?, description = ?, client = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(month, Math.round(amount * 100), description || '', client || 'Digital Span', id).run();
+
+    return c.json({ 
+      id: parseInt(id), 
+      month, 
+      amount, 
+      description, 
+      client,
+      message: 'Payment updated successfully' 
+    });
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    return c.json({ error: 'Failed to update payment' }, 500);
+  }
+});
+
+// Delete payment
+app.delete('/api/payments/:id', async (c) => {
+  const { env } = c;
+  const id = c.req.param('id');
+  
+  try {
+    const result = await env.DB.prepare(`
+      DELETE FROM payments WHERE id = ?
+    `).bind(id).run();
+
+    if (result.changes === 0) {
+      return c.json({ error: 'Payment not found' }, 404);
+    }
+
+    return c.json({ message: 'Payment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    return c.json({ error: 'Failed to delete payment' }, 500);
+  }
+});
+
 // Main dashboard route
 app.get('/', (c) => {
   return c.html(`
@@ -312,10 +419,11 @@ app.get('/', (c) => {
                                         <tr>
                                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
                                             <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                            <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200">
-                                        <tr><td colspan="2" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+                                        <tr><td colspan="3" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -336,10 +444,11 @@ app.get('/', (c) => {
                                         <tr>
                                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Month</th>
                                             <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                            <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200">
-                                        <tr><td colspan="2" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+                                        <tr><td colspan="3" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -417,6 +526,86 @@ app.get('/', (c) => {
                             <button type="submit" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Add Payment</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Project Modal -->
+        <div id="editProjectModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-lg max-w-md w-full p-6">
+                    <h3 class="text-lg font-semibold mb-4">Edit Project</h3>
+                    <form id="editProjectForm">
+                        <input type="hidden" id="editProjectId">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                            <input type="text" id="editProjectName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Amount (₹)</label>
+                            <input type="number" id="editProjectAmount" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            <textarea id="editProjectDescription" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select id="editProjectStatus" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="hideEditProjectForm()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">Cancel</button>
+                            <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Update Project</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Payment Modal -->
+        <div id="editPaymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-lg max-w-md w-full p-6">
+                    <h3 class="text-lg font-semibold mb-4">Edit Payment</h3>
+                    <form id="editPaymentForm">
+                        <input type="hidden" id="editPaymentId">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Month (YYYY-MM)</label>
+                            <input type="month" id="editPaymentMonth" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Amount (₹)</label>
+                            <input type="number" id="editPaymentAmount" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            <textarea id="editPaymentDescription" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="hideEditPaymentForm()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">Cancel</button>
+                            <button type="submit" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Update Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-lg max-w-md w-full p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-red-600">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Delete
+                    </h3>
+                    <p class="text-gray-700 mb-6" id="deleteMessage">Are you sure you want to delete this item? This action cannot be undone.</p>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="hideDeleteModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">Cancel</button>
+                        <button type="button" onclick="confirmDelete()" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
+                    </div>
                 </div>
             </div>
         </div>

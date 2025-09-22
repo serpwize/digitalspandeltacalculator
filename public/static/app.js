@@ -82,7 +82,7 @@ function updateProjectsTable() {
     const tbody = document.querySelector('#projectsTable tbody');
     
     if (currentData.projects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" class="px-4 py-8 text-center text-gray-500">No projects found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-500">No projects found</td></tr>';
         return;
     }
     
@@ -92,10 +92,25 @@ function updateProjectsTable() {
                 <div>
                     <p class="text-sm font-medium text-gray-900">${escapeHtml(project.name)}</p>
                     ${project.description ? `<p class="text-xs text-gray-500">${escapeHtml(project.description)}</p>` : ''}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        project.status === 'active' ? 'bg-green-100 text-green-800' :
+                        project.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                        'bg-red-100 text-red-800'
+                    }">${project.status}</span>
                 </div>
             </td>
             <td class="px-4 py-3 text-right text-sm font-medium text-gray-900">
                 ${formatCurrency(project.amount)}
+            </td>
+            <td class="px-4 py-3 text-center">
+                <div class="flex justify-center space-x-2">
+                    <button onclick="editProject(${project.id})" class="text-blue-600 hover:text-blue-800" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteProject(${project.id}, '${escapeHtml(project.name)}')" class="text-red-600 hover:text-red-800" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -106,7 +121,7 @@ function updatePaymentsTable() {
     const tbody = document.querySelector('#paymentsTable tbody');
     
     if (currentData.payments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" class="px-4 py-8 text-center text-gray-500">No payments found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-500">No payments found</td></tr>';
         return;
     }
     
@@ -120,6 +135,16 @@ function updatePaymentsTable() {
             </td>
             <td class="px-4 py-3 text-right text-sm font-medium text-gray-900">
                 ${formatCurrency(payment.amount)}
+            </td>
+            <td class="px-4 py-3 text-center">
+                <div class="flex justify-center space-x-2">
+                    <button onclick="editPayment(${payment.id})" class="text-blue-600 hover:text-blue-800" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deletePayment(${payment.id}, '${payment.month}')" class="text-red-600 hover:text-red-800" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -282,14 +307,196 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Edit form submissions
+    document.getElementById('editProjectForm').addEventListener('submit', updateProject);
+    document.getElementById('editPaymentForm').addEventListener('submit', updatePayment);
+    
+    // Edit modal close on click outside
+    document.getElementById('editProjectModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideEditProjectForm();
+        }
+    });
+    
+    document.getElementById('editPaymentModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideEditPaymentForm();
+        }
+    });
+    
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideDeleteModal();
+        }
+    });
+    
     // Escape key to close modals
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             hideAddProjectForm();
             hideAddPaymentForm();
+            hideEditProjectForm();
+            hideEditPaymentForm();
+            hideDeleteModal();
         }
     });
 });
+
+// Edit and Delete Functions
+
+// Edit Project Functions
+function editProject(projectId) {
+    const project = currentData.projects.find(p => p.id === projectId);
+    if (!project) {
+        showErrorMessage('Project not found');
+        return;
+    }
+    
+    document.getElementById('editProjectId').value = project.id;
+    document.getElementById('editProjectName').value = project.name;
+    document.getElementById('editProjectAmount').value = project.amount;
+    document.getElementById('editProjectDescription').value = project.description || '';
+    document.getElementById('editProjectStatus').value = project.status;
+    
+    showEditProjectForm();
+}
+
+function showEditProjectForm() {
+    document.getElementById('editProjectModal').classList.remove('hidden');
+}
+
+function hideEditProjectForm() {
+    document.getElementById('editProjectModal').classList.add('hidden');
+    document.getElementById('editProjectForm').reset();
+}
+
+async function updateProject(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('editProjectId').value;
+    const name = document.getElementById('editProjectName').value.trim();
+    const amount = parseFloat(document.getElementById('editProjectAmount').value);
+    const description = document.getElementById('editProjectDescription').value.trim();
+    const status = document.getElementById('editProjectStatus').value;
+    
+    if (!name || !amount) {
+        showErrorMessage('Please fill in all required fields');
+        return;
+    }
+    
+    try {
+        await axios.put(`/api/projects/${id}`, {
+            name,
+            amount,
+            description,
+            status
+        });
+        
+        hideEditProjectForm();
+        await loadData();
+        showSuccessMessage('Project updated successfully!');
+    } catch (error) {
+        console.error('Error updating project:', error);
+        showErrorMessage('Failed to update project. Please try again.');
+    }
+}
+
+// Edit Payment Functions
+function editPayment(paymentId) {
+    const payment = currentData.payments.find(p => p.id === paymentId);
+    if (!payment) {
+        showErrorMessage('Payment not found');
+        return;
+    }
+    
+    document.getElementById('editPaymentId').value = payment.id;
+    document.getElementById('editPaymentMonth').value = payment.month;
+    document.getElementById('editPaymentAmount').value = payment.amount;
+    document.getElementById('editPaymentDescription').value = payment.description || '';
+    
+    showEditPaymentForm();
+}
+
+function showEditPaymentForm() {
+    document.getElementById('editPaymentModal').classList.remove('hidden');
+}
+
+function hideEditPaymentForm() {
+    document.getElementById('editPaymentModal').classList.add('hidden');
+    document.getElementById('editPaymentForm').reset();
+}
+
+async function updatePayment(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('editPaymentId').value;
+    const month = document.getElementById('editPaymentMonth').value;
+    const amount = parseFloat(document.getElementById('editPaymentAmount').value);
+    const description = document.getElementById('editPaymentDescription').value.trim();
+    
+    if (!month || !amount) {
+        showErrorMessage('Please fill in all required fields');
+        return;
+    }
+    
+    try {
+        await axios.put(`/api/payments/${id}`, {
+            month,
+            amount,
+            description
+        });
+        
+        hideEditPaymentForm();
+        await loadData();
+        showSuccessMessage('Payment updated successfully!');
+    } catch (error) {
+        console.error('Error updating payment:', error);
+        showErrorMessage('Failed to update payment. Please try again.');
+    }
+}
+
+// Delete Functions
+let deleteItem = null;
+
+function deleteProject(projectId, projectName) {
+    deleteItem = { type: 'project', id: projectId, name: projectName };
+    document.getElementById('deleteMessage').textContent = `Are you sure you want to delete the project "${projectName}"? This action cannot be undone.`;
+    showDeleteModal();
+}
+
+function deletePayment(paymentId, paymentMonth) {
+    deleteItem = { type: 'payment', id: paymentId, name: `payment for ${paymentMonth}` };
+    document.getElementById('deleteMessage').textContent = `Are you sure you want to delete the payment for "${paymentMonth}"? This action cannot be undone.`;
+    showDeleteModal();
+}
+
+function showDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function hideDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+    deleteItem = null;
+}
+
+async function confirmDelete() {
+    if (!deleteItem) {
+        hideDeleteModal();
+        return;
+    }
+    
+    try {
+        const endpoint = deleteItem.type === 'project' ? '/api/projects' : '/api/payments';
+        await axios.delete(`${endpoint}/${deleteItem.id}`);
+        
+        hideDeleteModal();
+        await loadData();
+        showSuccessMessage(`${deleteItem.type === 'project' ? 'Project' : 'Payment'} deleted successfully!`);
+    } catch (error) {
+        console.error(`Error deleting ${deleteItem.type}:`, error);
+        showErrorMessage(`Failed to delete ${deleteItem.type}. Please try again.`);
+    }
+}
 
 // Auto-refresh every 5 minutes
 setInterval(() => {
