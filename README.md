@@ -11,7 +11,7 @@
 ## URLs
 - **Production**: https://3000-ibxu2wx0vq36ye5wqu9zg-6532622b.e2b.dev
 - **API Health**: https://3000-ibxu2wx0vq36ye5wqu9zg-6532622b.e2b.dev/api/delta
-- **GitHub**: (Repository to be configured)
+- **GitHub**: https://github.com/serpwize/digitalspandeltacalculator
 
 ## Current Financial Summary
 Based on your provided data:
