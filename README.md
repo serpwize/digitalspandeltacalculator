@@ -3,7 +3,7 @@
 ## Project Overview
 - **Name**: Delta Calculator
 - **Goal**: Track financial balance between project costs and payments received from Digital Span
-- **Features**: Real-time delta calculation, project management, payment tracking, interactive dashboard
+- **Features**: Real-time delta calculation, project management, payment tracking, interactive dashboard, **full edit/delete functionality**
 
 ## Current Status
 ✅ **ACTIVE** - Fully functional application deployed and running
@@ -33,6 +33,9 @@ Based on your provided data:
 - **Payment History**: Complete payment history from Sept 2024 to Sept 2025
 - **Add New Projects**: Modal form to add new projects with validation
 - **Add New Payments**: Modal form to add monthly payments
+- **✨ Edit Projects**: In-line edit functionality with status management (Active/Completed/Cancelled)
+- **✨ Edit Payments**: Full payment modification with month and amount updates
+- **✨ Delete Functionality**: Safe deletion with confirmation dialogs for both projects and payments
 - **Data Persistence**: All data stored in Cloudflare D1 SQLite database
 
 ### 3. API Endpoints
@@ -41,6 +44,10 @@ Based on your provided data:
 - **GET /api/delta** - Calculate current financial balance
 - **POST /api/projects** - Add new project entries
 - **POST /api/payments** - Add new payment records
+- **✨ PUT /api/projects/:id** - Update existing project data
+- **✨ PUT /api/payments/:id** - Update existing payment data  
+- **✨ DELETE /api/projects/:id** - Delete project entries
+- **✨ DELETE /api/payments/:id** - Delete payment records
 - **POST /api/delta/save** - Save current delta calculation to history
 
 ### 4. User Experience
@@ -83,6 +90,17 @@ Based on your provided data:
 2. **Add Payment**: Click "Add Payment" → Select month → Enter amount
    - Use YYYY-MM format for months (e.g., 2025-10)
    - Add description for payment context
+
+### ✨ Editing & Deleting Data
+1. **Edit Project**: Click edit icon (✏️) next to any project
+   - Modify name, amount, description, or status (Active/Completed/Cancelled)
+   - Status changes affect delta calculations (only Active projects counted)
+2. **Edit Payment**: Click edit icon (✏️) next to any payment
+   - Update month, amount, or description
+   - Changes immediately reflect in delta calculation
+3. **Delete Items**: Click delete icon (🗑️) next to any project/payment
+   - Confirmation dialog prevents accidental deletions
+   - Deletion permanently removes data and updates calculations
 
 ### Managing Calculations
 1. **Auto-calculation**: Delta updates automatically when data changes
